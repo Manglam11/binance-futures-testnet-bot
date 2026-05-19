@@ -1,7 +1,7 @@
 """Input validators for trading bot — fail fast with clear messages."""
 
 _VALID_SIDES = {"BUY", "SELL"}
-_VALID_TYPES = {"MARKET", "LIMIT"}
+_VALID_TYPES = {"MARKET", "LIMIT", "STOP_LIMIT"}
 
 def validate_symbol(symbol: str) -> str:
     """Validate and normalize a trading symbol.
@@ -116,5 +116,15 @@ def validate_price(price, order_type: str) -> float | None:
         if price <= 0:
             raise ValueError(f"Price value must be greater than 0 got {price} instead")
         return price
-
+def validate_stop_price(stop_price) -> float:
+    """Validate trigger price for STOP orders — must be a positive number."""
+    if stop_price is None:
+        raise ValueError("STOP_LIMIT orders require a stop price")
+    try:
+        stop_price = float(stop_price)
+    except (ValueError, TypeError) as e:
+        raise ValueError(f"Stop price must be a number, got '{stop_price}'") from e
+    if stop_price <= 0:
+        raise ValueError(f"Stop price must be positive, got {stop_price}")
+    return stop_price
 
