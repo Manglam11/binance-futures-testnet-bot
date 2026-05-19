@@ -7,6 +7,9 @@ import time
 from urllib.parse import urlencode
 import requests
 from dotenv import load_dotenv
+from bot.logging_config import setup_logger
+
+logger = setup_logger()
 
 
 class BinanceClient:
@@ -46,10 +49,10 @@ class BinanceClient:
         ).hexdigest()
 
     def _request(
-        self,
-        method: str,
-        endpoint: str,
-        params: dict | None = None,
+            self,
+            method: str,
+            endpoint: str,
+            params: dict | None = None,
     ) -> dict:
         """Send a signed HTTP request and return the parsed JSON response."""
         params = params.copy() if params else {}
@@ -57,14 +60,28 @@ class BinanceClient:
         params["signature"] = self._sign(params)
 
         url = f"{self.base_url}{endpoint}"
-        response = self.session.request(
-            method=method,
-            url=url,
-            params=params,
-            timeout=10,
-        )
-        response.raise_for_status()
-        return response.json()
+
+        # Log the request (DEBUG — only in file, not on console)
+        safe_params = {k: v for k, v in params.items() if k != "signature"}
+        logger.debug(f"API request -> {method} {endpoint} | params={safe_params}")
+
+        try:
+            response = self.session.request(
+                method=method,
+                url=url,
+                params=params,
+                timeout=10,
+            )
+            response.raise_for_status()
+            data = response.json()
+            logger.debug(f"API response <- {endpoint} | {data}")
+            return data
+        except requests.HTTPError as e:
+            logger.error(f"HTTP error on {endpoint}: {e.response.status_code} {e.response.text}")
+            raise
+        except requests.RequestException as e:
+            logger.error(f"Network error on {endpoint}: {e}")
+            raise
 
     # ---- public API ----
 
