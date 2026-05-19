@@ -47,3 +47,38 @@ def place_limit_order(
 
     # Send
     return client.post("/fapi/v1/order", params)
+
+def place_stop_limit_order(
+    client, symbol: str, side: str, quantity, price, stop_price
+) -> dict:
+    """Place a STOP-LIMIT order via Binance Algo Order API.
+
+    Note: As of 2025-12-09, Binance migrated conditional orders (STOP,
+    STOP_MARKET, TAKE_PROFIT etc.) to /fapi/v1/algoOrder. The old endpoint
+    /fapi/v1/order now returns error -4120 for these types.
+    """
+    # 1. Validate
+    symbol = validators.validate_symbol(symbol)
+    side = validators.validate_side(side)
+    quantity = validators.validate_quantity(quantity)
+    price = validators.validate_price(price, "LIMIT")
+    stop_price = validators.validate_stop_price(stop_price)
+
+    logger.info(
+        f"Placing STOP-LIMIT {side} order - {quantity} {symbol} "
+        f"@ {price} (trigger {stop_price})"
+    )
+
+    # 2. Build params for the new Algo Order endpoint
+    params = {
+        "algoType": "CONDITIONAL",   # required by new endpoint
+        "symbol": symbol,
+        "side": side,
+        "type": "STOP",              # STOP = stop-limit on futures
+        "quantity": quantity,
+        "price": price,
+        "triggerPrice": stop_price,  # was "stopPrice" on old endpoint
+        "timeInForce": "GTC",
+    }
+
+    return client.post("/fapi/v1/algoOrder", params)
